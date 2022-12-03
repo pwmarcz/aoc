@@ -1,21 +1,8 @@
-use std::io::BufRead;
+mod aoc_1;
+mod aoc_2;
 
-
-fn aoc_1() -> Result<u64, std::io::Error> {
-    let stdin = std::io::stdin();
-    let mut max = 0;
-    let mut cur = 0;
-    for line in stdin.lock().lines() {
-        if let Ok(num) = line?.parse::<u64>() {
-            cur += num;
-        } else {
-            max = std::cmp::max(max, cur);
-            cur = 0;
-        }
-    }
-    Ok(std::cmp::max(max, cur))
-}
-
+use aoc_1::aoc_1;
+use aoc_2::aoc_2;
 
 
 fn main() {
@@ -26,6 +13,7 @@ fn main() {
     }
     match args[1].as_str() {
         "1" => println!("{}", aoc_1().unwrap()),
+        "2" => println!("{:?}", aoc_2().unwrap()),
         _ => {
             println!("unrecognized num: {}", &args[1]);
             std::process::exit(1);
