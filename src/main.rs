@@ -1,8 +1,10 @@
 mod aoc_1;
 mod aoc_2;
+mod aoc_3;
 
 use aoc_1::aoc_1;
 use aoc_2::aoc_2;
+use aoc_3::aoc_3;
 
 
 fn main() {
@@ -12,8 +14,9 @@ fn main() {
         std::process::exit(1);
     }
     match args[1].as_str() {
-        "1" => println!("{}", aoc_1().unwrap()),
+        "1" => println!("{:?}", aoc_1().unwrap()),
         "2" => println!("{:?}", aoc_2().unwrap()),
+        "3" => println!("{:?}", aoc_3().unwrap()),
         _ => {
             println!("unrecognized num: {}", &args[1]);
             std::process::exit(1);
