@@ -1,8 +1,7 @@
 
 use std::io::{stdin, Read};
 
-use color_eyre::eyre::Result;
-use color_eyre::{eyre::eyre};
+use color_eyre::eyre::{eyre, Result};
 use itertools::Itertools;
 use regex::Regex;
 use lazy_static::lazy_static;
