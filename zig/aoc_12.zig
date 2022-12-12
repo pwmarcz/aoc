@@ -3,12 +3,6 @@ const std = @import("std");
 const Point = struct {
     x: usize,
     y: usize,
-
-    pub fn distance(p1: Point, p2: Point) usize {
-        const dx = if (p1.x > p2.x) p1.x - p2.x else p2.x - p1.x;
-        const dy = if (p1.y > p2.y) p1.y - p2.y else p2.y - p1.y;
-        return dx + dy;
-    }
 };
 
 const PQ = std.PriorityQueue(Point, *const Grid, Grid.pointCompare);
@@ -24,8 +18,8 @@ const Grid = struct {
     end: Point,
 
     pub fn pointCompare(self: *const Grid, p1: Point, p2: Point) std.math.Order {
-        const d1 = self.path[p1.y * self.width + p1.x] + p1.distance(self.end);
-        const d2 = self.path[p2.y * self.width + p2.x] + p2.distance(self.end);
+        const d1 = self.path[p1.y * self.width + p1.x];
+        const d2 = self.path[p2.y * self.width + p2.x];
         return std.math.order(d1, d2);
     }
 
@@ -34,24 +28,38 @@ const Grid = struct {
         allocator.free(self.path);
     }
 
-    pub fn findPath(self: *const Grid, allocator: std.mem.Allocator) !usize {
+    pub fn dijkstra(self: *const Grid, allocator: std.mem.Allocator) !void {
         var queue = PQ.init(allocator, self);
         defer queue.deinit();
-        try queue.add(self.start);
-        self.path[self.start.y * self.width + self.start.x] = 0;
+        try queue.add(self.end);
+        self.path[self.end.y * self.width + self.end.x] = 0;
 
         while (queue.len > 0) {
             const p = queue.remove();
-            const pathLen = self.path[p.y * self.width + p.x];
-            if (p.x == self.end.x and p.y == self.end.y) {
-                return pathLen;
-            }
             try self.maybeAdd(&queue, p, -1, 0);
             try self.maybeAdd(&queue, p, 1, 0);
             try self.maybeAdd(&queue, p, 0, -1);
             try self.maybeAdd(&queue, p, 0, 1);
         }
-        return error.noPath;
+    }
+
+    pub fn getPath(self: *const Grid) usize {
+        return self.path[self.start.y * self.width + self.start.x];
+    }
+
+    pub fn getPathBestStart(self: *const Grid) usize {
+        var best: usize = PATH_MAX;
+        var y: usize = 0;
+        while (y < self.height) : (y += 1) {
+            var x: usize = 0;
+            while (x < self.width) : (x += 1) {
+                if (self.nums[y * self.width + x] == 'a') {
+                    best = std.math.min(best, self.path[y * self.width + x]);
+                }
+            }
+        }
+
+        return best;
     }
 
     pub fn printPaths(self: *const Grid) void {
@@ -75,7 +83,7 @@ const Grid = struct {
 
         const pNum = self.nums[p.y * self.width + p.x];
         const num = self.nums[y * self.width + x];
-        if (num > pNum + 1) {
+        if (num < pNum - 1) {
             return;
         }
 
@@ -160,6 +168,8 @@ pub fn main() !void {
     const grid = try Grid.create(buf, allocator);
     defer grid.free(allocator);
 
-    std.debug.print("{d}\n", .{try grid.findPath(allocator)});
+    try grid.dijkstra(allocator);
+
+    std.debug.print("{d} {d}\n", .{grid.getPath(), grid.getPathBestStart()});
     //grid.printPaths();
 }
