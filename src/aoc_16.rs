@@ -75,6 +75,102 @@ struct DistanceMap {
     distances: HashMap<(Name, Name), usize>,
 }
 
+struct Backtrack<'a, const N: usize> {
+    map: &'a DistanceMap,
+    node_set: HashSet<(Name, usize)>,
+    best: usize,
+}
+
+struct BacktrackState<const N: usize> {
+    current: [Name; N],
+    next_move: [usize; N],
+    minutes_left: usize,
+    total: usize,
+    unopened: usize,
+}
+
+impl<'a, const N: usize> Backtrack<'a, N> {
+    fn new(map: &'a DistanceMap) -> Self {
+        Self {
+            map,
+            node_set: HashSet::from_iter(map.nodes.clone().into_iter()),
+            best: 0,
+        }
+    }
+
+    fn backtrack(&mut self, minutes: usize) -> usize {
+        let state = BacktrackState {
+            current: [START_NAME; N],
+            next_move: [minutes; N],
+            minutes_left: minutes,
+            total: 0,
+            unopened: self.map.nodes.iter().map(|(_, flow)| flow).sum(),
+        };
+        self.move_step(state, 0);
+        self.best
+    }
+
+    fn get_distance(&self, a: Name, b: Name) -> Option<usize> {
+        self.map.distances.get(&(a, b)).copied()
+    }
+
+    fn move_step(&mut self, state: BacktrackState<N>, i: usize) {
+        if i == N {
+            return self.wait_step(state);
+        }
+        if state.next_move[i] < state.minutes_left {
+            return self.move_step(state, i + 1);
+        }
+        let prev = state.current[i];
+        let nodes: Vec<(Name, usize)> = self.node_set.iter().cloned().collect();
+        for node @ (name, flow) in nodes.iter() {
+            self.node_set.remove(node);
+
+            if let Some(dist) = self.get_distance(prev, *name) {
+                if dist + 1 < state.minutes_left {
+                    let mut current = state.current.clone();
+                    current[i] = *name;
+                    let mut next_move = state.next_move.clone();
+                    next_move[i] = state.minutes_left - dist - 1;
+                    let state = BacktrackState {
+                        current,
+                        next_move,
+                        total: state.total + flow * (state.minutes_left - dist - 1),
+                        unopened: state.unopened - flow,
+                        ..state
+                    };
+                    self.move_step(state, i + 1);
+                }
+            }
+
+            self.node_set.insert(*node);
+        }
+    }
+
+    fn wait_step(&mut self, state: BacktrackState<N>) {
+        self.best = self.best.max(state.total);
+
+        if self.node_set.is_empty() {
+            return;
+        }
+        let minutes_left = *state.next_move.iter().max().unwrap();
+        assert!(minutes_left < state.minutes_left);
+
+        let estimated = state.unopened * (minutes_left - 1);
+        if state.total + estimated <= self.best {
+            return;
+        }
+
+        self.move_step(
+            BacktrackState {
+                minutes_left,
+                ..state
+            },
+            0,
+        );
+    }
+}
+
 impl DistanceMap {
     fn new() -> Self {
         Self {
@@ -120,47 +216,17 @@ impl DistanceMap {
     }
 
     fn find_best(&self) -> usize {
-        let mut best = 0;
-        let mut node_set: HashSet<(Name, usize)> =
-            HashSet::from_iter(self.nodes.clone().into_iter());
-        let unopened = self.nodes.iter().map(|(_, flow)| flow).sum();
-        self.backtrack(&mut node_set, &mut best, START_NAME, MINUTES, 0, unopened);
-        best
+        let mut state = Backtrack::<1>::new(self);
+        state.backtrack(MINUTES)
     }
 
-    fn backtrack(
-        &self,
-        node_set: &mut HashSet<(Name, usize)>,
-        best: &mut usize,
-        prev: Name,
-        minutes_left: usize,
-        total: usize,
-        unopened: usize,
-    ) {
-        *best = (*best).max(total);
-
-        let estimated = unopened * (minutes_left - 1);
-        if total + estimated < *best {
-            return;
-        }
-
-        let nodes: Vec<(Name, usize)> = node_set.iter().cloned().collect();
-        for (name, flow) in nodes.iter() {
-            let Some(dist) = self.distances.get(&(prev, *name)) else { continue };
-            if minutes_left > dist + 1 {
-                let minutes_left = minutes_left - dist - 1;
-                let total = total + flow * minutes_left;
-                let prev = *name;
-                let unopened = unopened - flow;
-                node_set.remove(&(*name, *flow));
-                self.backtrack(node_set, best, prev, minutes_left, total, unopened);
-                node_set.insert((*name, *flow));
-            }
-        }
+    fn find_best_2(&self) -> usize {
+        let mut state = Backtrack::<2>::new(self);
+        state.backtrack(MINUTES - 4)
     }
 }
 
-pub fn aoc_16() -> Result<usize> {
+pub fn aoc_16() -> Result<(usize, usize)> {
     let mut s = "".to_owned();
     stdin().read_to_string(&mut s)?;
 
@@ -175,5 +241,7 @@ pub fn aoc_16() -> Result<usize> {
     map.floyd_warshall();
     //map.dump();
     let result = map.find_best();
-    Ok(result)
+    let result2 = map.find_best_2();
+
+    Ok((result, result2))
 }
