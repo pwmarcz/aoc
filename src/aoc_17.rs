@@ -75,6 +75,22 @@ const ROCKS: [Rock; 5] = [
     },
 ];
 
+const SNAPSHOT_SIZE: usize = 32;
+
+#[derive(PartialEq, Eq, Hash)]
+struct Snapshot {
+    n_turns_mod: usize,
+    n_rocks_mod: usize,
+    last_rows: [u8; SNAPSHOT_SIZE],
+}
+
+#[derive(Copy, Clone, Debug)]
+struct Period {
+    n_rocks: usize,
+    n_rocks_delta: usize,
+    top_delta: usize,
+}
+
 struct Well {
     lines: Vec<u8>,
     shifts: Vec<Shift>,
@@ -83,8 +99,8 @@ struct Well {
     n_turns: usize,
     n_rocks: usize,
 
-    states: HashMap<(usize, usize), (usize, usize)>,
-    period: Option<(usize, usize)>,
+    snapshots: HashMap<Snapshot, (usize, usize)>,
+    period: Option<Period>,
 }
 
 impl Well {
@@ -96,7 +112,7 @@ impl Well {
             rock_pos: 3,
             n_turns: 0,
             n_rocks: 0,
-            states: HashMap::new(),
+            snapshots: HashMap::new(),
             period: None,
         }
     }
@@ -127,9 +143,7 @@ impl Well {
             // println!("down");
             self.rock_pos -= 1;
         } else {
-            if self.rock_pos == self.top() {
-                self.snapshot();
-            }
+            self.snapshot();
 
             // println!("rest");
             let lines = Self::lines4(&mut self.lines, self.rock_pos);
@@ -140,14 +154,27 @@ impl Well {
     }
 
     fn snapshot(&mut self) {
-        let state = (
-            self.n_turns % self.shifts.len(),
-            self.n_rocks % self.shifts.len(),
-        );
-        if let Some((n_rocks, top)) = self.states.get(&state) {
-            self.period = Some((self.n_rocks - n_rocks, self.top() - top));
+        if self.period.is_some() {
+            return;
+        }
+        if self.top() < SNAPSHOT_SIZE {
+            return;
+        }
+        let snapshot = Snapshot {
+            n_turns_mod: self.n_turns % ROCKS.len(),
+            n_rocks_mod: self.n_rocks % ROCKS.len(),
+            last_rows: self.lines[self.top() - SNAPSHOT_SIZE..self.top()]
+                .try_into()
+                .unwrap(),
+        };
+        if let Some((n_rocks, top)) = self.snapshots.get(&snapshot).cloned() {
+            self.period = Some(Period {
+                n_rocks,
+                n_rocks_delta: self.n_rocks - n_rocks,
+                top_delta: self.top() - top,
+            })
         } else {
-            self.states.insert(state, (self.n_rocks, self.top()));
+            self.snapshots.insert(snapshot, (self.n_rocks, self.top()));
         }
     }
 
@@ -173,13 +200,11 @@ impl Well {
         }
     }
 
-    fn simulate_until_reset(&mut self) {
-        loop {
+    fn find_period(&mut self) -> Period {
+        while self.period.is_none() {
             self.tick();
-            if self.n_turns % self.shifts.len() == 0 {
-                break;
-            }
         }
+        self.period.to_owned().unwrap()
     }
 
     #[allow(dead_code)]
@@ -215,9 +240,18 @@ pub fn aoc_17() -> Result<(usize, usize)> {
     well.simulate(2022);
     let result = well.top();
 
+    let period = well.find_period();
+    dbg!(period);
+
+    let goal = 1000000000000;
+
+    let mut well = Well::new(shifts.clone());
+    well.simulate(period.n_rocks + (goal - period.n_rocks) % period.n_rocks_delta);
+    let result2 = well.top() + (goal - period.n_rocks) / period.n_rocks_delta * period.top_delta;
+
     // let mut well = Well::new(shifts.clone());
     // well.simulate_until_period();
     // dbg!(n0, t0, n1, t1);
 
-    Ok((result, 0))
+    Ok((result, result2))
 }
