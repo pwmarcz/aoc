@@ -1,5 +1,6 @@
 import re
 import sys
+from collections import deque
 
 
 example_blueprints = [
@@ -32,70 +33,113 @@ class Backtrack:
         self.blueprint = blueprint
         self.best = 0
         self.n = n
-        self.states = [[] for _ in range(self.n)]
+        self.states = [deque() for _ in range(self.n)]
+        self.robots = [1, 0, 0, 0]
+        self.resources = [0, 0, 0, 0]
+        self.history = []
 
     def run(
         self,
         minute=0,
-        robots=[1, 0, 0, 0],
-        resources=[0, 0, 0, 0],
-        history='',
     ):
         if minute == self.n:
-            if resources[3] > self.best:
-                self.best = resources[3]
-                print(self.best, history)
-            return self.best
+            if self.resources[3] > self.best:
+                self.best = self.resources[3]
+                print(self.best, ''.join(self.history))
+            return
 
         remaining = self.n - minute
-        estimated = resources[3] + remaining * robots[3]
-        if any(r + rr < c for r, rr, c in zip(resources, robots, self.blueprint[3])):
+        estimated = self.resources[3] + remaining * self.robots[3]
+        if any(c > r + rr for c, r, rr in zip(self.blueprint[3], self.resources, self.robots)):
             estimated += max(0, remaining - 2) * max(0, remaining - 3) // 2
-        if any(r < c for r, c in zip(resources, self.blueprint[3])):
+        if any(c > r for c, r in zip(self.blueprint[3], self.resources)):
             estimated += max(0, remaining - 1) * max(0, remaining - 2) // 2
         else:
             estimated += remaining * max(0, remaining - 1) // 2
         if estimated <= self.best:
-            return self.best
-        # print(f"{minute:2} {history:25} {self.best:2} {str(robots):10} {str(resources):20}")
+            return
 
-        state = robots + resources
-        for old_state in self.states[minute]:
+        state = self.robots + self.resources
+        queue = self.states[minute]
+        for old_state in queue:
             if all(x <= y for x, y in zip(state, old_state)):
                 return
-        self.states[minute].append(state)
+        queue.append(state)
+        if len(queue) > 10:
+            queue.popleft()
 
-        for i in [3, 2, 1, 0]:
+        order = [i for (_, _,  i) in sorted([
+            (0, 0, 3),
+            (self.resources[2] / self.blueprint[3][2], 1, 2),
+            (self.resources[1] / self.blueprint[2][1], 2, 1),
+            (self.resources[0] / self.blueprint[2][0], 3, 0),
+        ])]
+        print(minute, self.best, ''.join(self.history), order)
+
+        for i in order:
             costs = self.blueprint[i]
-            if all(r >= c for r, c in zip(resources, costs)):
-                new_resources = [r-c+rr for r, c, rr in zip(resources, costs, robots)]
-                new_robots = robots.copy()
-                new_robots[i] += 1
-                self.run(minute+1, new_robots, new_resources, history=history+str(i))
+            if all(r >= c for r, c in zip(self.resources, costs)):
+                for j in range(4):
+                    self.resources[j] += self.robots[j] - costs[j]
+                self.robots[i] += 1
+                self.history.append(str(i))
+                self.run(minute+1)
+                self.history.pop()
+                self.robots[i] -= 1
+                for j in range(4):
+                    self.resources[j] -= self.robots[j] - costs[j]
 
-        new_resources = [r+rr for r, rr in zip(resources, robots)]
-        self.run(minute+1, robots, new_resources, history=history+'.')
+                if i == 3:
+                    return
+
+        for j in range(4):
+            self.resources[j] += self.robots[j]
+        self.history.append('.')
+        self.run(minute+1)
+        self.history.pop()
+        for j in range(4):
+            self.resources[j] -= self.robots[j]
 
         # self.states[minute] = state
-        return self.best
+        return
 
 
 def run_test(blueprints):
     total = 0
     for i, b in enumerate(blueprints):
-        best = Backtrack(b, 24).run()
-        total += best
-        print(i+1, '--->', best)
+        bt = Backtrack(b, 24)
+        bt.run()
+        total += (i+1) * bt.best
+        print(i+1, '--->', bt.best)
     return total
 
 
-def main():
-    print(run_test(example_blueprints))
-    return
-    lines = sys.stdin.readlines()
-    blueprints = [parse_blueprint(line) for line in lines]
-    print(run_test(blueprints))
+def run_test2(blueprints):
+    total = 1
+    for i, b in enumerate(blueprints):
+        bt = Backtrack(b, 32)
+        bt.run()
+        total *= bt.best
+        print(i+1, '--->', bt.best)
+    return total
+
+
+def main(example=False, idx=None):
+    if example:
+        blueprints = example_blueprints
+    else:
+        blueprints = [parse_blueprint(line) for line in sys.stdin.readlines()]
+    if idx is not None:
+        blueprints = [blueprints[idx]]
+    print(run_test2(blueprints[:3]))
 
 
 if __name__ == "__main__":
-    main()
+    example = False
+    idx = None
+    for arg in sys.argv[1:]:
+        if arg == 'example':
+            example = True
+        else:
+            idx = int(arg)
+    main(example, idx)
