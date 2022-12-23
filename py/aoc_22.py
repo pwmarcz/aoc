@@ -231,6 +231,7 @@ def check(cube):
 check(CUBE_SMALL)
 check(CUBE_BIG)
 
+
 def main():
     map_s, _, sequence = sys.stdin.read().partition('\n\n')
     map = Map(map_s.splitlines())
