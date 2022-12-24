@@ -1,7 +1,6 @@
 use anyhow::anyhow;
-use priority_queue::PriorityQueue;
 use std::{
-    collections::HashSet,
+    collections::{HashSet, VecDeque},
     io::{stdin, Read},
 };
 
@@ -54,24 +53,30 @@ struct Field {
     h: usize,
     period: usize,
     blizzards: Vec<Blizzard>,
+    template: Vec<bool>,
     slices: Vec<Vec<bool>>,
 }
 
 impl Field {
     fn try_from_string(s: &str) -> anyhow::Result<Self> {
-        let mut lines = s.lines();
-        let Some(first_line) = lines.next() else {
-            return Err(anyhow!("no first line"))
-        };
+        let lines: Vec<&str> = s.lines().collect();
+        if lines.len() == 0 {
+            return Err(anyhow!("no first line"));
+        }
 
-        let w = first_line.len();
-        let mut y = 1;
+        let w = lines[0].len();
+        let h = lines.len();
         let mut blizzards = Vec::new();
-        for line in lines {
+        let mut template = Vec::new();
+        for (y, line) in lines.iter().enumerate() {
             if line.len() != w {
                 return Err(anyhow!("unexpected line length: {}", line.len()));
             }
             for (x, c) in line.chars().enumerate() {
+                if c == '\n' {
+                    break;
+                }
+                template.push(c != '#');
                 let dir = match c {
                     '^' => Some(Direction::U),
                     'v' => Some(Direction::D),
@@ -84,9 +89,9 @@ impl Field {
                     blizzards.push(Blizzard { x, y, dir });
                 }
             }
-            y += 1;
         }
-        let h = y;
+
+        assert!(template.len() == w * h);
 
         Ok(Field {
             w,
@@ -94,6 +99,7 @@ impl Field {
             period: (w - 2) * (h - 2) / gcd(w - 2, h - 2),
             blizzards,
             slices: Vec::new(),
+            template,
         })
     }
 
@@ -115,16 +121,7 @@ impl Field {
     }
 
     fn compute_slice(&mut self, t: usize) -> Vec<bool> {
-        let mut slice = Vec::new();
-        slice.resize(self.w * self.h, true);
-        for y in 0..self.h {
-            slice[y * self.w] = false;
-            slice[y * self.w + self.w - 1] = false;
-        }
-        for x in 2..(self.w - 1) {
-            slice[x] = false;
-            slice[self.h * self.w - x - 1] = false;
-        }
+        let mut slice = self.template.clone();
         for blizzard in self.blizzards.iter() {
             let (x, y) = blizzard.pos(t, self.w, self.h);
             // dbg!(&blizzard, t, x, y);
@@ -148,12 +145,12 @@ impl Field {
         start: (usize, usize),
         end: (usize, usize),
     ) -> anyhow::Result<usize> {
-        let mut queue = PriorityQueue::new();
+        let mut queue = VecDeque::new();
         let mut seen = HashSet::new();
 
-        queue.push((start.0, start.1, t0), -(t0 as isize));
+        queue.push_back((start.0, start.1, t0));
         while !queue.is_empty() {
-            let ((x, y, t), _) = queue.pop().unwrap();
+            let (x, y, t) = queue.pop_front().unwrap();
             // println!("pop {}, {}, {}", x, y, t);
 
             let seen_item = (x, y, t % self.period);
@@ -173,20 +170,18 @@ impl Field {
                 return Ok(t);
             }
 
-            let t = t + 1;
-            let p = -(t as isize);
-            queue.push((x, y, t), p);
+            queue.push_back((x, y, t + 1));
             if x > 0 {
-                queue.push((x - 1, y, t), p);
+                queue.push_back((x - 1, y, t + 1));
             }
             if x < self.w - 1 {
-                queue.push((x + 1, y, t), p);
+                queue.push_back((x + 1, y, t + 1));
             }
             if y > 0 {
-                queue.push((x, y - 1, t), p);
+                queue.push_back((x, y - 1, t + 1));
             }
             if y < self.h - 1 {
-                queue.push((x, y + 1, t), p);
+                queue.push_back((x, y + 1, t + 1));
             }
         }
 
