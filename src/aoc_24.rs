@@ -134,13 +134,24 @@ impl Field {
         slice
     }
 
-    fn traverse(&mut self) -> Option<usize> {
+    fn start(&self) -> (usize, usize) {
+        (1, 0)
+    }
+
+    fn end(&self) -> (usize, usize) {
+        (self.w - 2, self.h - 1)
+    }
+
+    fn traverse(
+        &mut self,
+        t0: usize,
+        start: (usize, usize),
+        end: (usize, usize),
+    ) -> anyhow::Result<usize> {
         let mut queue = PriorityQueue::new();
         let mut seen = HashSet::new();
-        let start = (1, 0);
-        let end = (self.w - 2, self.h - 1);
 
-        queue.push((start.0, start.1, 0), 0 as isize);
+        queue.push((start.0, start.1, t0), -(t0 as isize));
         while !queue.is_empty() {
             let ((x, y, t), _) = queue.pop().unwrap();
             // println!("pop {}, {}, {}", x, y, t);
@@ -159,7 +170,7 @@ impl Field {
             }
 
             if (x, y) == end {
-                return Some(t);
+                return Ok(t);
             }
 
             let t = t + 1;
@@ -179,7 +190,12 @@ impl Field {
             }
         }
 
-        None
+        Err(anyhow!(
+            "no route found from {:?} to {:?} at {}",
+            start,
+            end,
+            t0
+        ))
     }
 
     #[allow(dead_code)]
@@ -210,7 +226,9 @@ pub fn aoc_24() -> anyhow::Result<(usize, usize)> {
     // field.print_at(1);
     // field.print_at(2);
 
-    let Some(result) = field.traverse() else { return Err(anyhow!("no route found"))};
+    let t1 = field.traverse(0, field.start(), field.end())?;
+    let t2 = field.traverse(t1, field.end(), field.start())?;
+    let t3 = field.traverse(t2, field.start(), field.end())?;
     // let result = 0;
-    Ok((result, 0))
+    Ok((t1, t3))
 }
