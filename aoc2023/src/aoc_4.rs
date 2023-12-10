@@ -51,7 +51,7 @@ fn parse_usize(s: &str) -> nom::IResult<&str, usize> {
 }
 
 fn parse_number(s: &str) -> nom::IResult<&str, Number> {
-    map_res(u8, u8::try_from)(s)
+    u8(s)
 }
 
 fn parse_number_list(s: &str) -> nom::IResult<&str, Vec<Number>> {
