@@ -6,8 +6,8 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::map,
-    multi::{separated_list0, separated_list1},
-    sequence::{delimited, tuple},
+    multi::{many0, separated_list0, separated_list1},
+    sequence::{delimited, terminated, tuple},
 };
 
 #[derive(Debug)]
@@ -89,7 +89,7 @@ impl Round {
 }
 
 pub fn aoc_2() -> Result<(usize, usize)> {
-    let games = util::parse_stdin(Game::parse)?;
+    let games = util::parse_stdin(|s| many0(terminated(Game::parse, tag("\n")))(s))?;
 
     let mut part1 = 0;
     let mut part2 = 0;
