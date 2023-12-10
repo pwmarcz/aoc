@@ -1,6 +1,12 @@
 use std::io::{stdin, Read};
 
-use nom::{bytes::complete::tag, combinator::all_consuming, multi::many0, sequence::terminated};
+use nom::{
+    bytes::complete::tag,
+    character::complete::u64,
+    combinator::{all_consuming, map_res},
+    multi::many0,
+    sequence::terminated,
+};
 
 pub fn parse_stdin<T, F>(parser: F) -> color_eyre::Result<Vec<T>>
 where
@@ -14,4 +20,8 @@ where
         Ok((_rest, items)) => Ok(items),
         Err(err) => Err(color_eyre::eyre::eyre!(err.to_owned())),
     }
+}
+
+pub fn parse_usize(s: &str) -> nom::IResult<&str, usize> {
+    map_res(u64, usize::try_from)(s)
 }

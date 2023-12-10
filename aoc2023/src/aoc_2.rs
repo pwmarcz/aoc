@@ -5,8 +5,7 @@ use crate::util;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::u64,
-    combinator::{map, map_res},
+    combinator::map,
     multi::{separated_list0, separated_list1},
     sequence::{delimited, tuple},
 };
@@ -20,7 +19,7 @@ impl Game {
     fn parse(s: &str) -> nom::IResult<&str, Self> {
         map(
             tuple((
-                delimited(tag("Game "), parse_usize, tag(": ")),
+                delimited(tag("Game "), util::parse_usize, tag(": ")),
                 separated_list1(tag("; "), Round::parse),
             )),
             |(_, rounds)| Game { rounds },
@@ -51,10 +50,6 @@ impl Game {
     }
 }
 
-fn parse_usize(s: &str) -> nom::IResult<&str, usize> {
-    map_res(u64, usize::try_from)(s)
-}
-
 #[derive(Debug)]
 struct Round {
     pub red: usize,
@@ -72,7 +67,7 @@ impl Round {
         let (rest, tuples) = separated_list0(
             tag(", "),
             tuple((
-                parse_usize,
+                util::parse_usize,
                 tag(" "),
                 alt((tag("red"), tag("green"), tag("blue"))),
             )),

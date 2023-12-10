@@ -1,10 +1,11 @@
+use crate::util;
 use color_eyre::eyre::Result;
 use std::io::{stdin, Read};
 
 use nom::{
     bytes::complete::tag,
-    character::complete::{space1, u64, u8},
-    combinator::{all_consuming, map, map_res},
+    character::complete::{space1, u8},
+    combinator::{all_consuming, map},
     multi::separated_list1,
     sequence::tuple,
 };
@@ -23,7 +24,7 @@ impl Card {
             tuple((
                 tag("Card"),
                 space1,
-                parse_usize,
+                util::parse_usize,
                 tag(":"),
                 space1,
                 parse_number_list,
@@ -46,10 +47,6 @@ impl Card {
     }
 }
 
-fn parse_usize(s: &str) -> nom::IResult<&str, usize> {
-    map_res(u64, usize::try_from)(s)
-}
-
 fn parse_number(s: &str) -> nom::IResult<&str, Number> {
     u8(s)
 }
@@ -59,7 +56,7 @@ fn parse_number_list(s: &str) -> nom::IResult<&str, Vec<Number>> {
 }
 
 pub fn aoc_4() -> Result<(usize, usize)> {
-    let mut s = "".to_owned();
+    let mut s: String = "".to_owned();
     stdin().read_to_string(&mut s)?;
 
     let cards: Vec<Card> = s
