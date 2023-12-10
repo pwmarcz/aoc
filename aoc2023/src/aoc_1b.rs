@@ -35,7 +35,7 @@ fn find_digit(line: &str, left: bool) -> Result<usize> {
     }
 }
 
-pub fn aoc_2() -> Result<usize> {
+pub fn aoc_1b() -> Result<usize> {
     let stdin = stdin();
     let mut result = 0;
     for line_res in stdin.lock().lines() {
