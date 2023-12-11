@@ -4,6 +4,7 @@ mod aoc_1b;
 mod aoc_2;
 mod aoc_4;
 mod aoc_5;
+mod aoc_6;
 
 fn main() {
     color_eyre::install().unwrap();
@@ -18,6 +19,7 @@ fn main() {
         "2" => println!("{:?}", aoc_2::aoc_2().unwrap()),
         "4" => println!("{:?}", aoc_4::aoc_4().unwrap()),
         "5" => println!("{:?}", aoc_5::aoc_5().unwrap()),
+        "6" => println!("{:?}", aoc_6::aoc_6().unwrap()),
         _ => {
             println!("unrecognized num: {}", &args[1]);
             std::process::exit(1);
