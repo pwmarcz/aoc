@@ -1,7 +1,7 @@
 use std::io::{stdin, Read};
 
 use nom::{
-    character::complete::u64,
+    character::complete::{i64, u64},
     combinator::{all_consuming, map_res},
     Finish,
 };
@@ -22,4 +22,8 @@ where
 
 pub fn parse_usize(s: &str) -> nom::IResult<&str, usize> {
     map_res(u64, usize::try_from)(s)
+}
+
+pub fn parse_isize(s: &str) -> nom::IResult<&str, isize> {
+    map_res(i64, isize::try_from)(s)
 }
