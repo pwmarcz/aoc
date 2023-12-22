@@ -1,6 +1,7 @@
 mod util;
 
 mod aoc_10;
+mod aoc_11;
 mod aoc_1b;
 mod aoc_2;
 mod aoc_4;
@@ -24,6 +25,7 @@ fn main() {
         "6" => println!("{:?}", aoc_6::aoc_6().unwrap()),
         "9" => println!("{:?}", aoc_9::aoc_9().unwrap()),
         "10" => println!("{:?}", aoc_10::aoc_10().unwrap()),
+        "11" => println!("{:?}", aoc_11::aoc_11().unwrap()),
         _ => {
             println!("unrecognized num: {}", &args[1]);
             std::process::exit(1);
