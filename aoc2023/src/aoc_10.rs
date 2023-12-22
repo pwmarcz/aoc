@@ -112,7 +112,7 @@ impl Map {
         result
     }
 
-    fn cycle_length(&self) -> Result<usize> {
+    fn find_cycle(&self) -> Result<Vec<(isize, isize)>> {
         let (x0, y0) = self.start()?;
         let exits = self.exits(x0, y0);
         if exits.len() != 2 {
@@ -120,14 +120,14 @@ impl Map {
         }
         let (mut x, mut y) = (x0, y0);
         let (mut dx, mut dy) = exits[0];
-        let mut n = 0;
+        let mut cycle = vec![(x0, y0)];
         loop {
             x = x + dx;
             y = y + dy;
-            n += 1;
             if (x, y) == (x0, y0) {
-                return Ok(n);
+                return Ok(cycle);
             }
+            cycle.push((x, y));
             let mut exits = self.exits(x, y);
             exits.retain(|(nx, ny)| (*nx, *ny) != (-dx, -dy));
             if exits.len() != 1 {
@@ -136,12 +136,61 @@ impl Map {
             (dx, dy) = exits[0];
         }
     }
+
+    fn cycle_is_right_hand(cycle: &Vec<(isize, isize)>) -> bool {
+        let (x0, y0) = *cycle.iter().min().unwrap();
+        let i = cycle.iter().position(|&(x, y)| (x, y) == (x0, y0)).unwrap();
+        let (_, y1) = cycle[(i + 1) % cycle.len()];
+        y1 > y0
+    }
+
+    fn cycle_area(cycle: &Vec<(isize, isize)>) -> usize {
+        let mut intersections = vec![];
+        let mut cycle = cycle.clone();
+        if Map::cycle_is_right_hand(&cycle) {
+            cycle.reverse();
+        }
+        for i in 0..cycle.len() {
+            let (x, y) = cycle[i];
+            let (x_prev, y_prev) = cycle[(i + cycle.len() - 1) % cycle.len()];
+            let (x_next, y_next) = cycle[(i + 1) % cycle.len()];
+
+            let is_boundary = y_prev != y && y_next != y;
+            let is_left_turn = !is_boundary
+                && ((y_prev < y && x < x_next)
+                    || (y_prev > y && x > x_next)
+                    || (x_prev < x && y > y_next)
+                    || (x_prev > x && y < y_next));
+            if is_boundary || is_left_turn {
+                intersections.push((y, x));
+            }
+        }
+        intersections.sort();
+        println!("{intersections:?}");
+        let (mut x_prev, mut y_prev) = (-1, -1);
+        let mut inside = false;
+        let mut area = 0;
+        for (y, x) in intersections {
+            if inside {
+                assert_eq!(y, y_prev);
+                area += x - x_prev - 1;
+                inside = false;
+            } else {
+                x_prev = x;
+                y_prev = y;
+                inside = true;
+            }
+        }
+        area as usize
+    }
 }
 
-pub fn aoc_10() -> Result<(usize,)> {
+pub fn aoc_10() -> Result<(usize, usize)> {
     let mut s: String = "".to_owned();
     stdin().read_to_string(&mut s)?;
     let map = Map::parse(&s)?;
-    let part1 = map.cycle_length()? / 2;
-    Ok((part1,))
+    let cycle = map.find_cycle()?;
+    let part1 = cycle.len() / 2;
+    let part2 = Map::cycle_area(&cycle);
+    Ok((part1, part2))
 }
