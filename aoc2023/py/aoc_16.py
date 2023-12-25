@@ -6,7 +6,6 @@ class Map:
 
     def __init__(self, s: str) -> None:
         self.rows = [list(line) for line in s.splitlines()]
-        self.next = {}
 
     @property
     def w(self):
