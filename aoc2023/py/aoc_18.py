@@ -8,7 +8,6 @@ class Command:
     dx: int
     dy: int
     n: int
-    hex: str
 
     @classmethod
     def from_str(cls, s: str) -> 'Command':
@@ -26,50 +25,97 @@ class Command:
             case _:
                 assert False
         n = int(m.group(2))
+        return cls(dx=dx, dy=dy, n=n)
+
+    @classmethod
+    def from_str2(cls, s: str) -> 'Command':
+        m = re.match(r'^([UDLR]) (\d+) \(#([0-9a-f]{6})\)$', s)
+        assert m, f"unrecognized: {s}"
         hex = m.group(3)
-        return cls(dx=dx, dy=dy, n=n, hex=hex)
+        n = int(hex[:5], 16)
+        match hex[5]:
+            case '3':
+                dx, dy = (0, -1)
+            case '1':
+                dx, dy = (0, 1)
+            case '2':
+                dx, dy = (-1, 0)
+            case '0':
+                dx, dy = (1, 0)
+            case _:
+                assert False, f'unrecogized digit: {hex[5]}'
+        return cls(dx=dx, dy=dy, n=n)
 
 
 def make_map(commands: list[Command]) -> 'Map':
     x, y = 0, 0
+    x_coord_set = {0}
+    y_coord_set = {0}
+    for cmd in commands:
+        x += cmd.dx * cmd.n
+        y += cmd.dy * cmd.n
+        x_coord_set.add(x)
+        x_coord_set.add(x+1)
+        y_coord_set.add(y)
+        y_coord_set.add(y+1)
+
+    x_coords = sorted(x_coord_set)[:-1]
+    y_coords = sorted(y_coord_set)[:-1]
+    print(x_coords, y_coords)
+
+    x, y = x_coords.index(x), y_coords.index(y)
     points = {(x, y)}
     for cmd in commands:
-        for i in range(cmd.n):
-            x += cmd.dx
-            y += cmd.dy
-            points.add((x, y))
-    return Map(points)
+        x1 = x_coords.index(x_coords[x] + cmd.dx * cmd.n)
+        y1 = y_coords.index(y_coords[y] + cmd.dy * cmd.n)
+        if x1 == x:
+            for yt in range(min(y, y1), max(y, y1) + 1):
+                points.add((x, yt))
+        else:
+            assert y1 == y
+            for xt in range(min(x, x1), max(x, x1) + 1):
+                points.add((xt, y))
+        x, y = x1, y1
+
+    return Map(points, x_coords, y_coords)
 
 
 class Map:
-    def __init__(self, points: set[tuple[int, int]]) -> None:
+    def __init__(self, points: set[tuple[int, int]], x_coords: list[int], y_coords: list[int]) -> None:
         self.points = points
-        min_x, min_y = 0, 0
-        max_x, max_y = 0, 0
-        for x, y in points:
-            min_x = min(min_x, x)
-            min_y = min(min_y, y)
-            max_x = max(max_x, x)
-            max_y = max(max_y, y)
-        self.min_x = min_x
-        self.min_y = min_y
-        self.max_x = max_x
-        self.max_y = max_y
+        self.x_coords = x_coords
+        self.y_coords = y_coords
 
     def calc_area(self) -> int:
         stack: list[tuple[int, int]] = []
-        for x in range(self.min_x, self.max_x + 1):
-            stack.append((x, self.min_y))
-            stack.append((x, self.max_y))
-        for y in range(self.min_y, self.max_y + 1):
-            stack.append((self.min_x, y))
-            stack.append((self.max_x, y))
+        for x in range(len(self.x_coords)):
+            stack.append((x, 0))
+            stack.append((x, len(self.y_coords) - 1))
+        for y in range(len(self.y_coords)):
+            stack.append((0, y))
+            stack.append((len(self.x_coords) - 1, y))
 
         marked = self.flood_fill(stack)
 
-        width = self.max_x - self.min_x + 1
-        height = self.max_y - self.min_y + 1
-        return width * height - len(marked)
+        width = self.x_coords[-1] - self.x_coords[0] + 1
+        height = self.y_coords[-1] - self.y_coords[0] + 1
+        area = width * height
+        # print(f'width {width}, height {height}')
+        for x, y in marked:
+            if x + 1 < len(self.x_coords):
+                w = self.x_coords[x + 1] - self.x_coords[x]
+            else:
+                w = 1
+            if y + 1 < len(self.y_coords):
+                h = self.y_coords[y + 1] - self.y_coords[y]
+            else:
+                h = 1
+            # print("point at {}, {} size {}".format(
+            #     self.x_coords[x], self.y_coords[y], w*h
+            # ))
+            area -= w * h
+
+        return area
 
     def flood_fill(self, stack: list[tuple[int, int]]) -> set[tuple[int, int]]:
         marked: set[tuple[int, int]] = set()
@@ -78,14 +124,17 @@ class Map:
             if (x, y) in self.points or (x, y) in marked:
                 continue
             marked.add((x, y))
-            if x > self.min_x:
+
+            if x > 0:
                 stack.append((x - 1, y))
-            if x < self.max_x:
+            if x < len(self.x_coords) - 1:
                 stack.append((x + 1, y))
-            if y > self.min_y:
+
+            if y > 0:
                 stack.append((x, y - 1))
-            if y < self.max_y:
+            if y < len(self.y_coords) - 1:
                 stack.append((x, y + 1))
+
         return marked
 
 
@@ -94,7 +143,12 @@ def main() -> None:
     commands = [Command.from_str(line) for line in lines]
     map = make_map(commands)
     part1 = map.calc_area()
-    print(part1)
+
+    commands = [Command.from_str2(line) for line in lines]
+    map = make_map(commands)
+    part2 = map.calc_area()
+
+    print(part1, part2)
 
 
 if __name__ == '__main__':
